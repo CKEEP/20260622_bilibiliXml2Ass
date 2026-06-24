@@ -44,8 +44,10 @@ def format_ass_time(seconds: float) -> str:
 
 
 def escape_ass_text(text: str) -> str:
-    """清理弹幕文本"""
-    return text.replace("\r", "").replace("\n", " ").strip()
+    """清理弹幕文本并转义 ASS 特殊字符"""
+    text = text.replace("\r", "").replace("\n", " ").strip()
+    # ASS 中 { } \ 是覆盖标签边界,必须转义,否则会破坏整行渲染
+    return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 
 
 def assign_row(start_time: float, end_time: float, rows: list[float]) -> int:
@@ -74,7 +76,15 @@ def build_ass_lines(danmakus: list) -> list:
         fs = max(18, min(fontsize, 60))
         text_px = len(text) * fs
 
-        if mode in (1, 2, 3):  # 滚动弹幕
+        if mode == 6:  # 逆向滚动 (从左向右)
+            duration = max(4.0, (PLAY_RES_X + text_px) / SCROLL_SPEED)
+            end_time = t + duration
+            row = assign_row(t, end_time, row_free_at)
+            y = TOP_MARGIN + row * ROW_HEIGHT + fs // 2
+            x1 = -text_px // 2
+            x2 = PLAY_RES_X + text_px // 2
+            effect = f"{{\\an2\\move({x1},{y},{x2},{y})\\fs{fs}\\1c{ass_color}}}"
+        elif mode in (1, 2, 3):  # 正向滚动 (从右向左)
             duration = max(4.0, (PLAY_RES_X + text_px) / SCROLL_SPEED)
             end_time = t + duration
             row = assign_row(t, end_time, row_free_at)
@@ -159,7 +169,7 @@ def convert_xml_to_ass(xml_path: str, ass_path: str) -> int:
 
     lines.extend(build_ass_lines(danmakus))
 
-    with open(ass_path, "w", encoding="utf-8-sig", newline="\n") as f:
+    with open(ass_path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines))
 
     return len(danmakus)
@@ -207,6 +217,9 @@ def main():
 
         try:
             count = convert_xml_to_ass(xml_path, ass_path)
+            if count == 0:
+                print(f"  [跳过] {xml_name} (无弹幕数据,XML 保留在原位置)")
+                continue
             backup_path = os.path.join(backup_dir, xml_name)
             if os.path.exists(backup_path):
                 base, ext = os.path.splitext(xml_name)
