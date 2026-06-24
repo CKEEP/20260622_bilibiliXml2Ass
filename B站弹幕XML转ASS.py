@@ -19,7 +19,7 @@ PLAY_RES_Y = 1080
 SCROLL_SPEED = 150.0          # 滚动速度(像素/秒), 越小越慢
 STATIC_DURATION = 5.0         # 固定弹幕停留秒数
 FONT_SIZE = 38                # 默认字号
-ROW_HEIGHT = 56               # 滚动弹幕行高(含间距)
+ROW_HEIGHT = 39               # 滚动弹幕行高(含间距)
 TOP_MARGIN = 30
 BOTTOM_MARGIN = 80            # 底部留空, 避开播放器进度条
 FONT_NAME = "Microsoft YaHei"
@@ -66,6 +66,7 @@ def build_ass_lines(danmakus: list) -> list:
     row_count = max(1, (PLAY_RES_Y - TOP_MARGIN - BOTTOM_MARGIN) // ROW_HEIGHT)
     row_free_at = [0.0] * row_count
     top_row_free_at = [0.0] * row_count
+    bottom_row_free_at = [0.0] * row_count
     lines = []
 
     for t, mode, fontsize, color_dec, text in sorted(danmakus, key=lambda d: d[0]):
@@ -83,7 +84,8 @@ def build_ass_lines(danmakus: list) -> list:
         if mode == 6:  # 逆向滚动 (从左向右)
             duration = max(4.0, (PLAY_RES_X + text_px) / SCROLL_SPEED)
             end_time = t + duration
-            row = assign_row(t, end_time, row_free_at)
+            row_free_time = t + duration * 0.5
+            row = assign_row(t, row_free_time, row_free_at)
             y = TOP_MARGIN + row * ROW_HEIGHT + fs // 2
             x1 = -text_px // 2
             x2 = PLAY_RES_X + text_px // 2
@@ -91,7 +93,8 @@ def build_ass_lines(danmakus: list) -> list:
         elif mode in (1, 2, 3):  # 正向滚动 (从右向左)
             duration = max(4.0, (PLAY_RES_X + text_px) / SCROLL_SPEED)
             end_time = t + duration
-            row = assign_row(t, end_time, row_free_at)
+            row_free_time = t + duration * 0.5
+            row = assign_row(t, row_free_time, row_free_at)
             y = TOP_MARGIN + row * ROW_HEIGHT + fs // 2
             x1 = PLAY_RES_X + text_px // 2
             x2 = -text_px // 2
@@ -103,12 +106,14 @@ def build_ass_lines(danmakus: list) -> list:
             effect = f"{{\\an8\\pos({PLAY_RES_X // 2},{y})\\fs{fs}\\1c{ass_color}}}"
         elif mode == 4:  # 底部固定
             end_time = t + STATIC_DURATION
-            y = PLAY_RES_Y - BOTTOM_MARGIN
+            row = assign_row(t, end_time, bottom_row_free_at)
+            y = PLAY_RES_Y - BOTTOM_MARGIN - row * ROW_HEIGHT - fs // 2
             effect = f"{{\\an2\\pos({PLAY_RES_X // 2},{y})\\fs{fs}\\1c{ass_color}}}"
         else:  # 其他模式按滚动处理
             duration = max(4.0, (PLAY_RES_X + text_px) / SCROLL_SPEED)
             end_time = t + duration
-            row = assign_row(t, end_time, row_free_at)
+            row_free_time = t + duration * 0.5
+            row = assign_row(t, row_free_time, row_free_at)
             y = TOP_MARGIN + row * ROW_HEIGHT + fs // 2
             x1 = PLAY_RES_X + text_px // 2
             x2 = -text_px // 2
