@@ -6,7 +6,7 @@ B站弹幕 XML 转 ASS 字幕工具
 ASS文件放在目录表层，原始XML文件移入 XML_Backup 子目录。
 
 用法: 终端运行 python B站弹幕XML转ASS.py  或双击运行后输入路径
-"""
+""" 
 
 import os
 import sys
