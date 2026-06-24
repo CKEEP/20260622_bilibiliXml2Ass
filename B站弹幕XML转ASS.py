@@ -65,16 +65,20 @@ def build_ass_lines(danmakus: list) -> list:
     """将弹幕列表转为 ASS Events 行列表"""
     row_count = max(1, (PLAY_RES_Y - TOP_MARGIN - BOTTOM_MARGIN) // ROW_HEIGHT)
     row_free_at = [0.0] * row_count
+    top_row_free_at = [0.0] * row_count
     lines = []
 
     for t, mode, fontsize, color_dec, text in sorted(danmakus, key=lambda d: d[0]):
-        text = escape_ass_text(text)
+        raw_text = text.strip()
+        if not raw_text:
+            continue
+        fs = max(18, min(fontsize, 60))
+        text_px = len(raw_text) * fs
+        text = escape_ass_text(raw_text)
         if not text:
             continue
 
         ass_color = decimal_to_ass_color(color_dec)
-        fs = max(18, min(fontsize, 60))
-        text_px = len(text) * fs
 
         if mode == 6:  # 逆向滚动 (从左向右)
             duration = max(4.0, (PLAY_RES_X + text_px) / SCROLL_SPEED)
@@ -94,7 +98,8 @@ def build_ass_lines(danmakus: list) -> list:
             effect = f"{{\\an2\\move({x1},{y},{x2},{y})\\fs{fs}\\1c{ass_color}}}"
         elif mode == 5:  # 顶部固定
             end_time = t + STATIC_DURATION
-            y = TOP_MARGIN + fs // 2
+            row = assign_row(t, end_time, top_row_free_at)
+            y = TOP_MARGIN + row * ROW_HEIGHT + fs // 2
             effect = f"{{\\an8\\pos({PLAY_RES_X // 2},{y})\\fs{fs}\\1c{ass_color}}}"
         elif mode == 4:  # 底部固定
             end_time = t + STATIC_DURATION
@@ -170,7 +175,7 @@ def convert_xml_to_ass(xml_path: str, ass_path: str) -> int:
     lines.extend(build_ass_lines(danmakus))
 
     with open(ass_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines))
+        f.write("\n".join(lines) + "\n")
 
     return len(danmakus)
 
